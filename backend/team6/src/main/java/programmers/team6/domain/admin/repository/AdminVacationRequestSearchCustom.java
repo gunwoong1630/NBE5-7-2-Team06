@@ -1,22 +1,25 @@
 package programmers.team6.domain.admin.repository;
 
-import java.util.List;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.support.PageableExecutionUtils;
 import org.springframework.stereotype.Repository;
 
 import com.querydsl.core.BooleanBuilder;
-import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.Order;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.JPAExpressions;
+import com.querydsl.jpa.JPQLQuery;
+import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 
 import lombok.RequiredArgsConstructor;
 import programmers.team6.domain.admin.dto.AdminVacationSearchCondition;
 import programmers.team6.domain.admin.dto.VacationRequestSearchResponse;
-import programmers.team6.domain.admin.utils.QueryDSLUtils;
+import programmers.team6.domain.admin.utils.JoinPair;
+import programmers.team6.domain.admin.utils.OrderPair;
+import programmers.team6.domain.admin.utils.QueryDslExecutor;
+import programmers.team6.domain.admin.utils.QueryDslPredicateBuilder;
+import programmers.team6.domain.admin.utils.QueryDslQueryBuilder;
 import programmers.team6.domain.member.entity.QCode;
 import programmers.team6.domain.member.entity.QDept;
 import programmers.team6.domain.member.entity.QMember;
@@ -54,71 +57,42 @@ public class AdminVacationRequestSearchCustom {
 		 * 6. 휴가 신청자 포지션
 		 * 7. 휴가 신청 상태
 		 */
-		BooleanBuilder builder = QueryDSLUtils.createEmptyCondition();
-		if (searchCondition.dateRange() != null) {
-			if (searchCondition.dateRange().start() != null && searchCondition.dateRange().end() != null) {
-				QueryDSLUtils.dataRange(builder, vacationRequest.from, vacationRequest.to,
-					searchCondition.dateRange().start(), searchCondition.dateRange().end());
-			}
-			if (searchCondition.dateRange().year() != null && searchCondition.dateRange().quarter() != null) {
-				QueryDSLUtils.dataRange(builder, vacationRequest.from, vacationRequest.to,
-					searchCondition.dateRange().quarter().getStart(searchCondition.dateRange().year()),
-					searchCondition.dateRange().quarter().getEnd(searchCondition.dateRange().year()));
-			}
-		}
+		BooleanBuilder condition = QueryDslPredicateBuilder.builder()
+			.andDateRange(vacationRequest.from, vacationRequest.to, searchCondition.dateRange().start(),
+				searchCondition.dateRange().end())
+			.andDateRange(vacationRequest.from, vacationRequest.to,
+				searchCondition.dateRange().quarter().getStart(searchCondition.dateRange().year()),
+				searchCondition.dateRange().quarter().getEnd(searchCondition.dateRange().year()))
+			.andContainsIgnoreCase(member.name, searchCondition.applicant().name())
+			.andContainsIgnoreCase(dept.deptName, searchCondition.applicant().deptName())
+			.andEqual(code.id, searchCondition.applicant().vacationTypeCodeId())
+			.andEqual(member.position.id, searchCondition.applicant().positionCodeId())
+			.andEqual(vacationRequest.status, searchCondition.vacationRequestStatus())
+			.build();
 
-		if (searchCondition.applicant().name() != null) {
-			QueryDSLUtils.containsIgnoreCase(builder, member.name, searchCondition.applicant().name());
-		}
+		JPQLQuery<String> subQuery = JPAExpressions.select(
+				Expressions.stringTemplate("group_concat({0})", approvalStep.member.name))
+			.from(approvalStep)
+			.where(approvalStep.vacationRequest.eq(vacationRequest));
 
-		if (searchCondition.applicant().deptName() != null) {
-			QueryDSLUtils.containsIgnoreCase(builder, dept.deptName, searchCondition.applicant().deptName());
-		}
-		if (searchCondition.applicant().vacationTypeCodeId() != null) {
-			QueryDSLUtils.equal(builder, code.id, searchCondition.applicant().vacationTypeCodeId());
-		}
-		if (searchCondition.applicant().positionCodeId() != null) {
-			QueryDSLUtils.equal(builder, member.position.id, searchCondition.applicant().positionCodeId());
-		}
-		if (searchCondition.vacationRequestStatus() != null) {
-			QueryDSLUtils.equal(builder, vacationRequest.status, searchCondition.vacationRequestStatus());
-		}
-
-		//⃣ pageable 적용을 위한 vacationRequest ID 먼저 조회
-		List<Long> vacationRequestIds = queryFactory
-			.select(vacationRequest.id)
-			.from(vacationRequest)
-			.join(vacationRequest.member, member)
-			.join(member.dept, dept)
-			.join(vacationRequest.type, code)
-			.where(builder)
-			.orderBy(vacationRequest.createdAt.desc())
-			.offset(pageable.getOffset())
-			.limit(pageable.getPageSize())
-			.fetch();
-
-		//⃣ ID 기준으로 join fetch 하여 최종 결과 생성
-		List<VacationRequestSearchResponse> content = queryFactory
-			.select(Projections.constructor(VacationRequestSearchResponse.class,
+		JPAQuery query = QueryDslQueryBuilder.builder(queryFactory, vacationRequest)
+			.select(VacationRequestSearchResponse.class,
 				vacationRequest.id,
 				code.name,
 				vacationRequest.from,
 				vacationRequest.to,
 				member.name,
-				JPAExpressions.select(
-						Expressions.stringTemplate("group_concat({0})", approvalStep.member.name))
-					.from(approvalStep)
-					.where(approvalStep.vacationRequest.eq(vacationRequest)),
+				subQuery,
 				dept.deptName,
-				vacationRequest.status))
-			.from(vacationRequest)
-			.join(vacationRequest.member, member)
-			.join(member.dept, dept)
-			.join(vacationRequest.type, code)
-			.where(vacationRequest.id.in(vacationRequestIds))
-			.orderBy(vacationRequest.createdAt.desc())
-			.fetch();
+				vacationRequest.status)
+			.join(
+				new JoinPair(vacationRequest.member, member),
+				new JoinPair(member.dept, dept),
+				new JoinPair(vacationRequest.type, code))
+			.where(condition)
+			.orderBy(new OrderPair(vacationRequest.createdAt, Order.DESC))
+			.build();
 
-		return PageableExecutionUtils.getPage(content, pageable, () -> vacationRequestIds.size());
+		return QueryDslExecutor.fetchPage(query, vacationRequest, pageable);
 	}
 }

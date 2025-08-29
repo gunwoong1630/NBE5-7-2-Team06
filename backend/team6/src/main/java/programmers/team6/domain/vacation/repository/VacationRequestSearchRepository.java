@@ -6,11 +6,14 @@ import java.util.List;
 import org.springframework.stereotype.Repository;
 
 import com.querydsl.core.BooleanBuilder;
-import com.querydsl.core.types.Projections;
+import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 
 import lombok.RequiredArgsConstructor;
-import programmers.team6.domain.admin.utils.QueryDSLUtils;
+import programmers.team6.domain.admin.utils.JoinPair;
+import programmers.team6.domain.admin.utils.QueryDslExecutor;
+import programmers.team6.domain.admin.utils.QueryDslPredicateBuilder;
+import programmers.team6.domain.admin.utils.QueryDslQueryBuilder;
 import programmers.team6.domain.member.entity.QCode;
 import programmers.team6.domain.member.entity.QDept;
 import programmers.team6.domain.member.entity.QMember;
@@ -33,36 +36,27 @@ public class VacationRequestSearchRepository {
 		QCode position = QCode.code1;  // member.position
 		QCode type = QCode.code1;      // vacationRequest.type
 
-		BooleanBuilder builder = QueryDSLUtils.createEmptyCondition();
+		BooleanBuilder predicates = QueryDslPredicateBuilder.builder()
+			.andEqual(vacationRequest.status, status)
+			.andGreaterThanOrEqualTo(vacationRequest.from, start)
+			.andLessThan(vacationRequest.to, end)
+			.andEqual(dept.id, deptId).build();
 
-		if (status != null) {
-			QueryDSLUtils.equal(builder, vacationRequest.status, status);
-		}
-		if (start != null) {
-			QueryDSLUtils.greaterThanOrEqualTo(builder, vacationRequest.from, start);
-		}
-		if (end != null) {
-			QueryDSLUtils.lessThan(builder, vacationRequest.to, end);
-		}
-		if (deptId != null && deptId != 0) {
-			QueryDSLUtils.equal(builder,dept.id, deptId);
-		}
-		return queryFactory
-			.select(Projections.constructor(
-				VacationRequestCalendarResponse.class,
+		JPAQuery query = QueryDslQueryBuilder.builder(queryFactory, vacationRequest)
+			.select(VacationRequestCalendarResponse.class,
 				member.name,
 				dept.deptName,
 				type.name,
 				position.name,
 				vacationRequest.from,
-				vacationRequest.to
-			))
-			.from(vacationRequest)
-			.join(vacationRequest.member, member)
-			.join(member.dept, dept)
-			.join(member.position, position)
-			.join(vacationRequest.type, type)
-			.where(builder)
-			.fetch();
+				vacationRequest.to)
+			.join(
+				new JoinPair<>(vacationRequest.member, member),
+				new JoinPair<>(member.dept, dept),
+				new JoinPair<>(vacationRequest.type, type)
+			)
+			.where(predicates).build();
+
+		return QueryDslExecutor.fetch(query);
 	}
 }

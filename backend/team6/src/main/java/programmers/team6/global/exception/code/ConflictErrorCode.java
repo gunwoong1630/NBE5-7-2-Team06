@@ -8,7 +8,8 @@ public enum ConflictErrorCode implements ErrorCode {
 
 	CONFLICT_EMAIL("중복된 이메일입니다."),
 	CONFLICT_APPROVAL_STEP("결재 단계 동기화 실패"),
-	CONFLICT_VERSION("버전이 맞지 않습니다");
+	CONFLICT_VERSION("버전이 맞지 않습니다"),
+	CONFLICT_SQL("DB 에러 발생했습니다.");
 
 	private final String message;
 	private final HttpStatus httpStatus = HttpStatus.CONFLICT;

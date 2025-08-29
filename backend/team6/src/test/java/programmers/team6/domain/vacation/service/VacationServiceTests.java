@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.*;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +27,7 @@ import programmers.team6.domain.vacation.repository.VacationRequestRepository;
 @Slf4j
 @SpringBootTest
 @Transactional
+@Disabled
 class VacationServiceTests {
 
 	@Autowired

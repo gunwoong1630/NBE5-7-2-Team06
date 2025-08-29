@@ -2,7 +2,6 @@ package programmers.team6.domain.admin.enums;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.time.Month;
 import java.time.temporal.IsoFields;
 import java.time.temporal.TemporalAdjuster;
@@ -17,7 +16,10 @@ public enum Quarter {
 		this.value = value;
 	}
 
-	public LocalDateTime getStart(int year) {
+	public LocalDateTime getStart(Integer year) {
+		if (year == null) {
+			return null;
+		}
 		LocalDate startDate = switch (this) {
 			case Q1, Q2, Q3, Q4 -> applyQuarterAdjuster(year, TemporalAdjusters.firstDayOfMonth());
 			case H1, NONE -> LocalDate.of(year, Month.JANUARY, 1);
@@ -26,7 +28,10 @@ public enum Quarter {
 		return startDate.atStartOfDay();
 	}
 
-	public LocalDateTime getEnd(int year) {
+	public LocalDateTime getEnd(Integer year) {
+		if (year == null) {
+			return null;
+		}
 		LocalDate endDate = switch (this) {
 			case Q1, Q2, Q3, Q4 -> applyQuarterAdjuster(year, TemporalAdjusters.lastDayOfMonth()).plusMonths(2);
 			case H1 -> LocalDate.of(year, Month.JUNE, 30);

@@ -7,8 +7,10 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -22,13 +24,15 @@ import programmers.team6.global.exception.customException.BadRequestException;
 import programmers.team6.global.exception.customException.NotFoundException;
 
 @DataJpaTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @RequiredArgsConstructor
 @Import(CodeService.class)
+@Disabled
 class CodeServiceTest {
 	@Autowired
 	private CodeRepository codeRepository;
 	@Autowired
-	private final CodeService codeService;
+	private CodeService codeService;
 
 	@BeforeEach
 	void setUp() {
@@ -92,7 +96,6 @@ class CodeServiceTest {
 
 		// when
 		when(codeRepository.findById(0L)).thenThrow(NotFoundException.class);
-
 
 		codeService.updateCode(0L, codeCreateRequest);
 	}

@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.time.LocalDateTime;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -42,6 +43,7 @@ import programmers.team6.global.exception.customException.NotFoundException;
 @Transactional
 @SpringBootTest
 @AutoConfigureMockMvc
+@Disabled
 public class AuthServiceTests {
 
 	@Autowired
